@@ -20,10 +20,10 @@ enum TokenType {
     When,
     Default,
     Extends,
-    Block(BlockType),
+    Block{ blockType: BlockType },
     MixinBlock,
     Include(String, ),
-    Attributes
+    Attrs(Vec<String>
 
 
 }

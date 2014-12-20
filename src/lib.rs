@@ -10,7 +10,6 @@
 extern crate regex;
 #[phase(plugin)] extern crate regex_macros;
 
-mod tokens;
 mod lexer;
 
 pub fn parse(tpl: String) {
@@ -18,5 +17,6 @@ pub fn parse(tpl: String) {
 }
 
 #[test]
-fn it_works() {
+#[ignore]
+fn parse_simple() {
 }

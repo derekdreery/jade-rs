@@ -2,15 +2,18 @@
 #![comment = "Jade html templating from NodeJs"]
 #![license = "MIT"]
 #![feature(slicing_syntax)]
-#![feature(phase)]
+#![feature(plugin)]
 #![allow(dead_code)]
 #![allow(unused_attributes)]
 #![allow(unused_variables)]
+#![allow(unstable)]
 
+extern crate core;
 extern crate regex;
-#[phase(plugin)] extern crate regex_macros;
+#[plugin] extern crate regex_macros;
 
-mod lexer;
+pub mod lexer;
+pub mod brackets;
 
 pub fn parse(tpl: String) {
     

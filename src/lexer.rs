@@ -3,7 +3,7 @@ use regex;
 use std::fmt;
 
 /// Represents block types
-#[deriving(PartialEq, Show)]
+#[derive(PartialEq, Show, Copy)]
 pub enum BlockType {
     Append,
     Prepend,
@@ -11,13 +11,13 @@ pub enum BlockType {
 }
 
 /// Represents token value types
-#[deriving(PartialEq, Show)]
+#[derive(PartialEq, Show)]
 pub enum ValueType {
     String(String)
 }
 
 /// Represets token types
-#[deriving(PartialEq, Show)]
+#[derive(PartialEq, Show)]
 pub enum TokenType {
     /// Some(Nothing) = no-op, but restart looking
     /// None = carry on looking)
@@ -49,15 +49,15 @@ pub enum TokenType {
 }
 
 /// A parsed token from input
-#[deriving(PartialEq, Show)]
+#[derive(PartialEq, Show)]
 pub struct Token {
     token_type: TokenType,
-    line_number: uint,
+    line_number: u32,
 }
 
 impl Token {
     /// quick constructor
-    pub fn new(token_type: TokenType, line_number: uint) -> Token {
+    pub fn new(token_type: TokenType, line_number: u32) -> Token {
         Token {
             token_type: token_type,
             line_number: line_number
@@ -67,20 +67,20 @@ impl Token {
 
 /// A struct to pass the necessary information to the lexer
 /// from a token matcher method
-#[deriving(PartialEq, Show)]
+#[derive(PartialEq, Show)]
 struct TokenResult {
     /// The matched token
     token: Token,
     /// The amount of input to consume
-    input_increment: uint,
+    input_increment: usize,
     /// The number of lines to consume
-    line_increment: uint
+    line_increment: u32
 }
 
 impl TokenResult {
     /// A quick constructor function
     #[inline]
-    fn new(token: Token, input_increment: uint, line_increment: uint) -> TokenResult {
+    fn new(token: Token, input_increment: usize, line_increment: u32) -> TokenResult {
         TokenResult {
             token: token,
             input_increment: input_increment,
@@ -95,14 +95,14 @@ impl TokenResult {
  * This struct takes an input string, and returns
  * it as a sequence of tokens for parsing/compiling
  */
-#[deriving(PartialEq)]
+#[derive(PartialEq)]
 pub struct Lexer<'a> {
     input: &'a str,
     filename: Option<String>,
-    position: uint,
+    position: usize,
     deferred_tokens: Vec<Token>,
-    last_indents: uint,
-    line_number: uint,
+    last_indents: u32,
+    line_number: u32,
     stash: Vec<Token>,
     indent_stack: Vec<Token>,
     indent_regex: (),
@@ -142,7 +142,7 @@ impl<'a> Lexer<'a> {
     /// Get remaining input as slice
     #[inline]
     fn get_input(&self) -> &str {
-        self.input[self.position..]
+        &self.input[self.position..]
     }
 
     /// Create a new token, with line number
@@ -155,9 +155,9 @@ impl<'a> Lexer<'a> {
     /// Consume amt number of bytes of the input, returning
     /// it as a slice
     #[inline]
-    pub fn consume(&mut self, amt: uint) -> &str {
+    pub fn consume(&mut self, amt: usize) -> &str {
         self.position += amt;
-        self.input[self.position - amt .. self.position] // as if the consume didn't happen
+        &self.input[self.position - amt .. self.position] // as if the consume didn't happen
     }
 
 
@@ -169,10 +169,10 @@ impl<'a> Lexer<'a> {
 
     /**
      * Scan for a regex and create a simple token on match
-     *
+     * TODO I think I can remove this
      */
     pub fn scan(&mut self, re: regex::Regex) -> Option<String> {
-        let (res, consume_len) = match re.captures(self.input[self.position..]) {
+        let (res, consume_len) = match re.captures(&self.input[self.position..]) {
             // Fail if match failed
             Some(captures) => {
                 match captures.pos(0) {
@@ -183,7 +183,7 @@ impl<'a> Lexer<'a> {
                     Some((x, y)) if x == 0 => {
                         match captures.at(1) {
                             Some(cap) => (
-                                Some(cap.into_string()),
+                                Some(cap.to_string()),
                                 // We have already tested for existence,
                                 // so safe to unwrap
                                 captures.at(0).unwrap().len()
@@ -207,7 +207,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Return amt tokens
-    pub fn lookahead(&mut self, amt: uint) -> &Token {
+    pub fn lookahead(&mut self, amt: usize) -> &Token {
         for _ in range(1, amt - self.stash.len()) {
             let next = self.next();
             self.stash.push(next);
@@ -216,7 +216,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Get the contents of a bracketed expression
-    pub fn bracket_expression(&self, skip: uint) {
+    pub fn bracket_expression(&self, skip: u32) {
     }
 
     /// Pop off the token stash
@@ -237,7 +237,7 @@ impl<'a> Lexer<'a> {
     }
 
     /// Test the input against a rule
-    pub fn test(&mut self, f: |&str| -> Option<TokenResult>) -> Option<Token> {
+    fn test(&mut self, f: fn(&str) -> Option<TokenResult>) -> Option<Token> {
         match f(self.get_input()) {
             Some(res) => {
                 self.consume(res.input_increment);
@@ -269,7 +269,7 @@ impl<'a> Lexer<'a> {
     fn blank(&self) -> Option<TokenResult> {
         match regex!(r"^\n *\n").find(self.get_input()) {
             Some((0, end)) => {
-                let res = self.get_input()[..end];
+                let res = &self.get_input()[..end];
                 if self.pipeless {
                     Some(TokenResult::new(self.tok(TokenType::Text("".to_string())), end-1, 1))
                 } else {
@@ -303,8 +303,9 @@ impl<'a> Lexer<'a> {
         res
     }
 
-    /// TODO what is this?
+    // TODO what is this?
     // TODO doing bracket matching is hard. Jade.js uses a lib, should I?
+    /*
     fn interpolation(&self) -> Option<TokenResult> {
         match regex!(r"^#\{").is_match(self.get_input()) {
             true => {
@@ -312,11 +313,11 @@ impl<'a> Lexer<'a> {
             },
             false => None
         }
-    }
+    }*/
 
 }
 
-impl <'a> fmt::Show for Lexer<'a> {
+impl <'a> fmt::Debug for Lexer<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Lexer {{ input: {}, position: {} }}", self.input, self.position)
     }
@@ -358,7 +359,7 @@ mod tests {
     }
 
     #[test]
-    fn test_new() {
+    fn new() {
         let ls = Lexer::new(jade_block());
         assert_eq!(ls, Lexer {
                 input: jade_block(),
@@ -375,7 +376,7 @@ mod tests {
     }
 
     #[test]
-    fn test_consume() {
+    fn consume() {
         let test_str = "function testfn() { }";
         let mut ls = Lexer::new(test_str);
         assert_eq!(ls.consume(10), "function t");
@@ -385,21 +386,21 @@ mod tests {
 
     #[test]
     #[ignore] // need tokens working to test this
-    fn test_lookahead() {
+    fn lookahead() {
         let test_str = "function testfn() { }";
         let ls = Lexer::new(test_str);
     }
 
     #[test]
     #[ignore] // need tokens working to test this
-    fn test_peek() {
+    fn peek() {
         let test_str = "function testfn() { }";
         let ls = Lexer::new(test_str);
     }
 
     // TODO use token-like strings to test
     #[test]
-    fn test_scan() {
+    fn scan() {
         let test_str = "function testfn() { }";
         let mut ls = Lexer::new(test_str);
         // first regex should match "function" and capture "unc"
@@ -414,7 +415,7 @@ mod tests {
     }
 
     #[test]
-    fn test_eos() {
+    fn eos() {
         let mut true1 = Lexer::new("");
         let mut false1 = Lexer::new("notend");
         assert_eq!(true1.eos(), Some(TokenResult::new(
@@ -424,7 +425,7 @@ mod tests {
     }
 
     #[test]
-    fn test_blank() {
+    fn blank() {
         let true1 = Lexer::new("\n        \n");
         let true2 = Lexer::new("\n\n");
         let false1 = Lexer::new("\nSome text this line\n");
@@ -438,18 +439,18 @@ mod tests {
     }
 
     #[test]
-    fn test_comment() {
+    fn comment() {
         let mut true1 = Lexer::new("// This is a comment\nThis is another line");
         let mut true2 = Lexer::new("//- This is an unbuffered comment");
         let mut false1 = Lexer::new("This is not a comment // this is not the next token");
         assert_eq!(true1.comment(), Some(TokenResult::new(
-            true1.tok(TokenType::Comment(Some(" This is a comment".into_string()), true)),
+            true1.tok(TokenType::Comment(Some(" This is a comment".to_string()), true)),
             "// This is a comment".len(),
             0
         )));
         assert_eq!(true2.comment(), Some(TokenResult::new(
             true1.tok(TokenType::Comment(
-                Some(" This is an unbuffered comment".into_string()),
+                Some(" This is an unbuffered comment".to_string()),
                 false
             )),
             "//- This is an unbuffered comment".len(),
@@ -459,6 +460,6 @@ mod tests {
     }
 
     #[test]
-    fn test_complex() {
+    fn complex() {
     }
 }

@@ -9,7 +9,7 @@ use core::str::StrExt;
 /// The results of parsing some input
 /// NOTE: I haven't really thought about unicode properly
 /// (specifically graphemes)
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BracketState {
     pub line_comment: bool,
     pub block_comment: bool,
@@ -183,6 +183,7 @@ pub fn parse_until<'a>(src: &'a str, delimiter: &str) -> Option<BracketBlock<'a>
 
 /// Parse the next character, given a current state
 pub fn parse_char_from_state(ch: char, state: &mut BracketState) {
+    println!("State is {:?}\n char is {:?}", state, ch);
     state.src.push(ch);
     let was_comment = state.in_comment();
     // NOTE I suspect this will become an option anyway allowing me to remove this
@@ -372,7 +373,7 @@ fn starts_with(src: &str, start: &str, i: usize) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use brackets::{BracketState, BracketBlock, parse, parse_from_state, parse_max};
+    use brackets::{BracketState, BracketBlock, parse, parse_from_state, parse_max, parse_until};
 
     #[test]
     fn depth_change_calc() {
@@ -400,7 +401,47 @@ mod tests {
 
     #[test]
     fn get_to_delimeter() {
-        //let block_option = parser.parse_until //TODO mid-line
+        let block_option = parse_until("foo.bar(\"%>\").baz%> bing bong", "%>");
+        assert!(block_option.is_some());
+        let block = block_option.unwrap();
+        assert_eq!(block.start, 0);
+        assert_eq!(block.end, 17);
+        assert_eq!(block.src, "foo.bar(\"%>\").baz");
+    }
+
+    #[test]
+    fn section_including_regex() {
+        let block_option = parse_max("foo=/\\//g, bar=\"}\") bing bong");
+        assert!(block_option.is_some());
+        let block = block_option.unwrap();
+        assert_eq!(block.start, 0);
+        assert_eq!(block.end, 18);
+        assert_eq!(block.src, "foo=/\\//g, bar=\"}\"");
+
+        let block_option = parse_max("foo = typeof /\\//g, bar=\"}\") bing bong");
+        assert!(block_option.is_some());
+        let block = block_option.unwrap();
+        assert_eq!(block.start, 0);
+        // Note the following comparison fails, as in the original lib
+        //assert_eq!(block.end, 18); //exclusive end of string
+        assert_eq!(block.src, "foo = typeof /\\//g, bar=\"}\"");
+    }
+
+    #[test]
+    fn section_including_block_comment() {
+        let block_option = parse_max("/* ) */) bing bong");
+        assert!(block_option.is_some());
+        let block = block_option.unwrap();
+        assert_eq!(block.start, 0);
+        assert_eq!(block.end, 7); //exclusive end of string
+        assert_eq!(block.src, "/* ) */)");
+
+        let block_option = parse_max("/* /) */) bing bong");
+        assert!(block_option.is_some());
+        let block = block_option.unwrap();
+        assert_eq!(block.start, 0);
+        assert_eq!(block.end, 8); //exclusive end of string
+        assert_eq!(block.src, "/* /) */)");
     }
 }
 

@@ -3,7 +3,7 @@ use regex;
 use std::fmt;
 
 /// Represents block types
-#[derive(PartialEq, Show, Copy)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum BlockType {
     Append,
     Prepend,
@@ -11,13 +11,13 @@ pub enum BlockType {
 }
 
 /// Represents token value types
-#[derive(PartialEq, Show)]
+#[derive(PartialEq, Debug)]
 pub enum ValueType {
     String(String)
 }
 
 /// Represets token types
-#[derive(PartialEq, Show)]
+#[derive(PartialEq, Debug)]
 pub enum TokenType {
     /// Some(Nothing) = no-op, but restart looking
     /// None = carry on looking)
@@ -49,7 +49,7 @@ pub enum TokenType {
 }
 
 /// A parsed token from input
-#[derive(PartialEq, Show)]
+#[derive(PartialEq, Debug)]
 pub struct Token {
     token_type: TokenType,
     line_number: u32,
@@ -67,7 +67,7 @@ impl Token {
 
 /// A struct to pass the necessary information to the lexer
 /// from a token matcher method
-#[derive(PartialEq, Show)]
+#[derive(PartialEq, Debug)]
 struct TokenResult {
     /// The matched token
     token: Token,
@@ -163,8 +163,8 @@ impl<'a> Lexer<'a> {
 
     /// Return the next char
     #[inline]
-    pub fn peek(&self) -> char {
-        self.input.char_at(self.position)
+    pub fn peek(&self) -> Option<char> {
+        self.input.chars().nth(self.position)
     }
 
     /**
@@ -208,7 +208,8 @@ impl<'a> Lexer<'a> {
 
     /// Return amt tokens
     pub fn lookahead(&mut self, amt: usize) -> &Token {
-        for _ in range(1, amt - self.stash.len()) {
+        let len = amt - self.stash.len();
+        for _ in 1..len {
             let next = self.next();
             self.stash.push(next);
         }
@@ -217,6 +218,7 @@ impl<'a> Lexer<'a> {
 
     /// Get the contents of a bracketed expression
     pub fn bracket_expression(&self, skip: u32) {
+        
     }
 
     /// Pop off the token stash

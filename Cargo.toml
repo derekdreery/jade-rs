@@ -5,5 +5,4 @@ version = "0.0.1"
 authors = ["Richard Dodd <richard.o.dodd@gmail.com>"]
 
 [dependencies]
-regex_macros = "*"
 regex = "*"

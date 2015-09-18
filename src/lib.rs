@@ -1,5 +1,4 @@
 #![crate_name = "jade"]
-#![feature(collections)]
 #![allow(dead_code)]
 #![allow(unused_attributes)]
 #![allow(unused_variables)]

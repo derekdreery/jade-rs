@@ -1,6 +1,31 @@
-
 use std::default::Default;
 use regex;
+
+
+/// Vendoring in (with slight modifications to make not-a-method) from the Rust
+/// source to avoid deprecation error.
+fn slice_chars(s: &str, begin: usize, end: usize) -> &str {
+    assert!(begin <= end);
+    let mut count = 0;
+    let mut begin_byte = None;
+    let mut end_byte = None;
+
+    // This could be even more efficient by not decoding,
+    // only finding the char boundaries
+    for (idx, _) in s.char_indices() {
+        if count == begin { begin_byte = Some(idx); }
+        if count == end { end_byte = Some(idx); break; }
+        count += 1;
+    }
+    if begin_byte.is_none() && count == begin { begin_byte = Some(s.len()) }
+    if end_byte.is_none() && count == end { end_byte = Some(s.len()) }
+
+    match (begin_byte, end_byte) {
+        (None, _) => panic!("slice_chars: `begin` is beyond end of string"),
+        (_, None) => panic!("slice_chars: `end` is beyond end of string"),
+        (Some(a), Some(b)) => unsafe { s.slice_unchecked(a, b) }
+    }
+}
 
 /*
  * This module is for parsing javascript, with probably more generality
@@ -193,7 +218,7 @@ pub fn parse_until_with_options<'a>(src: &'a str,
     Some(BracketBlock {
         start: start,
         end: idx,
-        src: src.slice_chars(start, idx)
+        src: slice_chars(src, start, idx),
     })
 }
 
@@ -389,7 +414,7 @@ fn starts_with(src: &str, start: &str, i: usize) -> bool {
     if end >= src.chars().count() {
         false
     } else {
-        src.slice_chars(i, i + start.chars().count()) == start
+        slice_chars(src, i, i + start.chars().count()) == start
     }
 }
 

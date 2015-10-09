@@ -1,3 +1,7 @@
+Notice
+======
+This currently is very unfinished. If anyone develops a working jade compiler before I finish this one and wants this repo name - just get in touch and I'll pass it over
+
 jade-rs
 =======
 
